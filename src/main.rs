@@ -1,13 +1,13 @@
+use std::{ fs};
 use std::collections::HashMap;
-use std::fs;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 
 use error_chain::error_chain;
-
+use clap::Parser;
 use crate::chain::{Chain, ChainChannelInfo};
-use crate::ibc::{ IbcData};
+use crate::ibc::IbcData;
 
 mod ibc;
 mod chain;
@@ -20,13 +20,24 @@ error_chain! {
     }
 }
 
+/// Program to transform ibc chain files into a single file per chain
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Input directory
+    #[arg(short, long, default_value = "./chain-registry/_IBC")]
+    in_directory: String,
+
+    /// Output director
+    #[arg(short, long, default_value = "/tmp/IBC")]
+    out_directory: String,
+}
 
 fn main() -> Result<()> {
-    let current_dir = PathBuf::from("./chain-registry/_IBC");
-    println!(
-        "Entries modified in the last 24 hours in {:?}:",
-        current_dir
-    );
+    let args = Args::parse();
+
+    let current_dir = PathBuf::from(args.in_directory);
+
     let mut chains: HashMap<String, Chain> = HashMap::new();
 
     for entry in fs::read_dir(current_dir)? {
@@ -35,7 +46,7 @@ fn main() -> Result<()> {
 
         let metadata = fs::metadata(&path)?;
         if metadata.is_file() {
-            let reader = BufReader::new(fs::File::open(path)?);
+            let reader = BufReader::new(File::open(path)?);
             let channel_def: IbcData = serde_json::from_reader(reader)?;
             //  println!("{} - {}", channel_def.chain_1.chain_name, channel_def.chain_2.chain_name);
             let channels = channel_def.channels;
@@ -60,7 +71,6 @@ fn main() -> Result<()> {
                     }
                 }
             ).or_insert({
-
                 Chain { chain_name: channel_def.chain_1.chain_name.to_string(), transfers: transfers_chain_1 }
             });
             let transfers_chain_2: HashMap<String, ChainChannelInfo> =
@@ -84,17 +94,19 @@ fn main() -> Result<()> {
                     }
                 }
             ).or_insert({
-
                 Chain { chain_name: channel_def.chain_2.chain_name.to_string(), transfers: transfers_chain_2 }
             });
         }
     }
-    fs::create_dir_all("/tmp/ibc")?;
-    for chain in chains {
-        let out_file = File::create(&format!("/tmp/ibc/{}.json", chain.0))?;
+    fs::create_dir_all(&args.out_directory)?;
+    for chain in &chains {
+        let out_file = File::create(format!("{}/{}.json", &args.out_directory, chain.0))?;
         serde_json::to_writer_pretty(out_file, &chain.1)?;
     }
-    //   println!("Terra2 - {:?}", chains.get("terra2"));
+    println!(
+        "{} chain entries created in {:?}:", chains.len(),
+        args.out_directory
+    );
 
     Ok(())
 }
