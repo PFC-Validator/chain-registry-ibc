@@ -49,7 +49,8 @@ fn main() -> Result<()> {
 
         let metadata = fs::metadata(&path)?;
         if metadata.is_file() {
-            let reader = BufReader::new(File::open(path)?);
+            let reader = BufReader::new(File::open(path.clone())?);
+           // println!("{}", path.to_str().unwrap());
             let channel_def: IbcData = serde_json::from_reader(reader)?;
             //  println!("{} - {}", channel_def.chain_1.chain_name, channel_def.chain_2.chain_name);
             let channels = channel_def.channels;
@@ -106,15 +107,15 @@ fn main() -> Result<()> {
     let out_index_file = File::create(format!("{}/index.ts", &args.out_directory))?;
     let mut out_line = LineWriter::new(out_index_file);
 
-    out_line.write(format!("// automatically generated: {}\n\n", now.to_rfc3339()).as_bytes())?;
+    out_line.write_all(format!("// automatically generated: {}\n\n", now.to_rfc3339()).as_bytes())?;
 
 
     for chain in &chains {
-        out_line.write(format!("import {} from './{}.json';\n", &chain.0, &chain.0).as_bytes())?;
+        out_line.write_all(format!("import {} from './{}.json';\n", &chain.0, &chain.0).as_bytes())?;
         let out_file = File::create(format!("{}/{}.json", &args.out_directory, chain.0))?;
         serde_json::to_writer_pretty(out_file, &chain.1)?;
     }
-    out_line.write("\nexport interface ChainDeets {
+    out_line.write_all("\nexport interface ChainDeets {
   chain_name: string;
   transfers: {
     [chainId: string]: {
@@ -127,11 +128,11 @@ fn main() -> Result<()> {
     };
   };
 }\n".as_bytes())?;
-    out_line.write(format!("export const ibcData: {{ [chainId:string]: ChainDeets }} = {{\n").as_bytes())?;
+    out_line.write_all("export const ibcData: {{ [chainId:string]: ChainDeets }} = {{\n".as_bytes())?;
     for chain in &chains {
-        out_line.write(format!("\t'{}':{},\n", &chain.0, &chain.0).as_bytes())?;
+        out_line.write_all(format!("\t'{}':{},\n", &chain.0, &chain.0).as_bytes())?;
     }
-    out_line.write(format!("}};\n").as_bytes())?;
+    out_line.write_all("}};\n".as_bytes())?;
 
     println!(
         "{} chain entries created in {:?}:", chains.len(),
