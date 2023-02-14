@@ -128,11 +128,11 @@ fn main() -> Result<()> {
     };
   };
 }\n".as_bytes())?;
-    out_line.write_all("export const ibcData: {{ [chainId:string]: ChainDeets }} = {{\n".as_bytes())?;
+    out_line.write_all("export const ibcData: { [chainId:string]: ChainDeets } = {\n".as_bytes())?;
     for chain in &chains {
         out_line.write_all(format!("\t'{}':{},\n", &chain.0, &chain.0).as_bytes())?;
     }
-    out_line.write_all("}};\n".as_bytes())?;
+    out_line.write_all("};\n".as_bytes())?;
 
     println!(
         "{} chain entries created in {:?}:", chains.len(),
